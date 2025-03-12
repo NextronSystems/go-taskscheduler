@@ -63,6 +63,15 @@ func GetTasks() ([]Task, error) {
 	return getTasksRecursively(root), nil
 }
 
+var (
+	// oleZeroTime is the zero value for times transmitted via OLE
+	// see https://learn.microsoft.com/en-us/windows/win32/api/oleauto/nf-oleauto-systemtimetovarianttime
+	oleZeroTime, _ = time.Parse(time.ANSIC, "Sat Dec 30 00:00:00 1899")
+	// defaultLastRunTime is the default value for LastRunTime if the task has never been run.
+	// This is undocumented by Microsoft.
+	defaultLastRunTime, _ = time.Parse(time.ANSIC, "Tue Nov 30 00:00:00 1999")
+)
+
 func getTasksRecursively(folder *ole.IDispatch) (tasks []Task) {
 	var (
 		variant *ole.VARIANT
@@ -117,9 +126,15 @@ func getTasksRecursively(folder *ole.IDispatch) (tasks []Task) {
 		}
 		if variant, err = oleutil.GetProperty(task, "lastRunTime"); err == nil {
 			t.LastRunTime, _ = variant.Value().(time.Time)
+			if t.LastRunTime.Equal(defaultLastRunTime) {
+				t.LastRunTime = time.Time{}
+			}
 		}
 		if variant, err = oleutil.GetProperty(task, "nextRunTime"); err == nil {
 			t.NextRunTime, _ = variant.Value().(time.Time)
+			if t.NextRunTime.Equal(oleZeroTime) {
+				t.NextRunTime = time.Time{}
+			}
 		}
 		// Get more details, e.g. actions
 		if variant, err = oleutil.GetProperty(task, "definition"); err == nil {
