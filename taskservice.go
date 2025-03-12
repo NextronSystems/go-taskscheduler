@@ -2,6 +2,7 @@ package taskscheduler
 
 import (
 	"errors"
+	"runtime"
 	"time"
 
 	"github.com/go-ole/go-ole"
@@ -27,6 +28,10 @@ type ExecAction struct {
 
 // GetTasks returns a list of all scheduled Tasks in Windows Task Scheduler 2.0
 func GetTasks() ([]Task, error) {
+	// COM requires all actions to happen in the same thread
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	// Initialize COM API
 	if err := ole.CoInitializeEx(0, ole.COINIT_MULTITHREADED); err != nil {
 		return nil, errors.New("Could not initialize Windows COM API")
